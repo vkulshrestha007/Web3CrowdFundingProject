@@ -1,0 +1,36 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/crypto-fund-me/node_modules
+/crypto-fund-me/.pnp
+/crypto-fund-me/.pnp.js
+
+# testing
+/crypto-fund-me/coverage
+
+# next.js
+/crypto-fund-me/.next/
+/crypto-fund-me/out/
+
+# production
+/crypto-fund-me/build
+
+# misc
+/crypto-fund-me/.DS_Store
+/crypto-fund-me/*.pem
+
+# debug
+/crypto-fund-me/npm-debug.log*
+/crypto-fund-me/yarn-debug.log*
+/crypto-fund-me/yarn-error.log*
+/crypto-fund-me/.pnpm-debug.log*
+
+# local env files
+/crypto-fund-me/.env*.local
+
+# vercel
+/crypto-fund-me/.vercel
+
+# typescript
+/crypto-fund-me/*.tsbuildinfo
+/crypto-fund-me/next-env.d.ts
