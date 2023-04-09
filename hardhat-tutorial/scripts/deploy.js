@@ -7,26 +7,37 @@
 const hre = require("hardhat");
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
+  /*
+A ContractFactory in ethers.js is an abstraction used to deploy new smart contracts,
+so nftContract here is a factory for instances of our NFTee contract.
+*/
+  const coinContract = await ethers.getContractFactory("Batch4Team1Coin");
+  const receiptContract = await ethers.getContractFactory("Batch4Team1Receipt");
+  const crowdfundContract = await ethers.getContractFactory("Crowdfund");
 
-  const lockedAmount = hre.ethers.utils.parseEther("0.001");
+  // here we deploy the contract
+  const deployedCoinContract = await coinContract.deploy();
+  const deployedReceiptContract = await receiptContract.deploy();
 
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  // wait for the contract to deploy
+  await deployedCoinContract.deployed();
+  await deployedReceiptContract.deployed();
 
-  await lock.deployed();
+  // print the address of the deployed contract
+  console.log("Coin Contract Address:", deployedCoinContract.address);
+  console.log("Receipt Contract Address:", deployedReceiptContract.address);
 
-  console.log(
-    `Lock with ${ethers.utils.formatEther(
-      lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
+  const deployedCrowdfundContract = await crowdfundContract.deploy(deployedCoinContract.address, deployedReceiptContract.address);
+
+  await deployedCrowdfundContract.deployed();
+  console.log("Crowdfund Contract Address:", deployedCrowdfundContract.address);
+
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+// Call the main function and catch if there is any error
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

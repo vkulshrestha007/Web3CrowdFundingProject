@@ -8,54 +8,61 @@ import "./Batch4Team1Receipt.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 contract Crowdfund is ERC1155Holder {
-
     Batch4Team1Coin b4t1Coin;
     Batch4Team1Receipt b4t1Receipt;
+
+    uint constant MINIMUM_AMOUNT = 10_000;
 
     uint campaignId = 0;
 
     struct Campaign {
-
         uint _id;
         string _name;
+        string _motivationStatement;
+        string _imagePath;
         address _projectOwner;
-
         uint _target;
         uint _collection;
-        uint256 _presaleEndTime; // timeline ?
-
+        uint256 _withdrawPledgeTime;
+        uint256 _presaleEndTime;
         bool _ended;
-        // address payable[] _contributors; // To be used for ETH contributions
         address[] _contributors;
-        uint256[] _contributions;
     }
+
+    mapping(uint => mapping(address => uint)) public _contributionDetails;
 
     Campaign[] public campaigns;
 
-    constructor (address b4t1CoinAddress, address b4t1ReceiptAddress) {
+    constructor(address b4t1CoinAddress, address b4t1ReceiptAddress) {
         b4t1Coin = Batch4Team1Coin(b4t1CoinAddress);
         b4t1Receipt = Batch4Team1Receipt(b4t1ReceiptAddress);
     }
 
-    // Constructor for ETH contributions
-    // constructor() {}
-
     modifier campaignOwner(uint campaignIdLocal, address sender) {
-      if (campaigns[campaignIdLocal]._projectOwner == sender) {
-         _;
-      }
+        require(
+            campaigns[campaignIdLocal]._projectOwner == sender,
+            "Only campaignOwner can trigger this functionality."
+        );
+
+        _;
     }
 
-    // function createCampaign(uint target, string memory name, uint endTime) external returns (uint){
-    function createCampaign(uint target, string memory name) external returns (uint){
-
+    function createCampaign(
+        uint target,
+        string memory name,
+        string memory motivationStatement,
+        string memory imagePath,
+        uint endTime
+    ) external returns (uint) {
         Campaign memory _c;
         _c._id = campaignId++;
         _c._name = name;
+        _c._motivationStatement = motivationStatement;
+        _c._imagePath = imagePath;
         _c._projectOwner = msg.sender;
         _c._target = target;
-        // _c._presaleEndTime = endTime;
-        _c._presaleEndTime = block.timestamp + 2 minutes;  // TODO remove this line + uncomment above line
+        _c._presaleEndTime = endTime;
+        _c._withdrawPledgeTime = block.timestamp + 2 minutes;
         _c._ended = false;
 
         campaigns.push(_c);
@@ -63,9 +70,13 @@ contract Crowdfund is ERC1155Holder {
         return campaignId - 1;
     }
 
-    function checkCampaign(uint campaignIdLocal) external returns (string memory){
-
-        console.log("Is campaign active :: %s",  campaigns[campaignIdLocal]._ended != true);
+    function checkCampaign(
+        uint campaignIdLocal
+    ) external returns (string memory) {
+        console.log(
+            "Is campaign active :: %s",
+            campaigns[campaignIdLocal]._ended != true
+        );
 
         if (campaigns[campaignIdLocal]._ended == true) {
             console.log("Returning campaign ended.");
@@ -73,13 +84,22 @@ contract Crowdfund is ERC1155Holder {
         }
 
         // Time ended + Met contribution ?
-        console.log("Time met ?? :: %s", campaigns[campaignIdLocal]._presaleEndTime < block.timestamp);
-        console.log("Contribution goal met ?? :: %s", campaigns[campaignIdLocal]._collection >= campaigns[campaignIdLocal]._target);
+        console.log(
+            "Time met ?? :: %s",
+            campaigns[campaignIdLocal]._presaleEndTime < block.timestamp
+        );
+        console.log(
+            "Contribution goal met ?? :: %s",
+            campaigns[campaignIdLocal]._collection >=
+                campaigns[campaignIdLocal]._target
+        );
 
-        if (campaigns[campaignIdLocal]._presaleEndTime < block.timestamp && 
-            campaigns[campaignIdLocal]._collection >= campaigns[campaignIdLocal]._target) {
-            
-            console.log("Calling encCampaign");
+        if (
+            campaigns[campaignIdLocal]._presaleEndTime < block.timestamp &&
+            campaigns[campaignIdLocal]._collection <
+            campaigns[campaignIdLocal]._target
+        ) {
+            console.log("Calling endCampaign");
 
             endCampaign(campaignIdLocal);
             return "ended";
@@ -89,117 +109,165 @@ contract Crowdfund is ERC1155Holder {
     }
 
     function endCampaign(uint campaignIdLocal) internal {
+        require(gasleft() > MINIMUM_AMOUNT, "Insufficient gas balance");
+        require(
+            campaigns[campaignIdLocal]._ended == false,
+            "Campaign already ended."
+        );
 
         console.log("Marking campaign ended with id = %s", campaignIdLocal);
         campaigns[campaignIdLocal]._ended = true;
 
-        // For this campaign, loop over the contributors array
-        for (uint8 i = 0; i < campaigns[campaignIdLocal]._contributors.length; i++) {
-
-            if (campaigns[campaignIdLocal]._contributions[i] == 0) {
-
-                console.log("No contribution to return to address :: %s", campaigns[campaignIdLocal]._contributors[i]);
+        // For this campaign, loop over the contributors
+        for (
+            uint8 i = 0;
+            i < campaigns[campaignIdLocal]._contributors.length;
+            i++
+        ) {
+            if (
+                _contributionDetails[campaignIdLocal][
+                    campaigns[campaignIdLocal]._contributors[i]
+                ] == 0
+            ) {
+                console.log(
+                    "No contribution to return to address :: %s",
+                    campaigns[campaignIdLocal]._contributors[i]
+                );
                 continue;
             }
 
             // Return the tokens back to the contributor.
-            // TODO - stake tokens for Gas fee
-            b4t1Coin.transfer(campaigns[campaignIdLocal]._contributors[i], campaigns[campaignIdLocal]._contributions[i]);
-            
-            // To be used for ETH contributions return
-            // campaigns[campaignIdLocal]._contributors[i].transfer(campaigns[campaignIdLocal]._contributions[i]);
+            b4t1Coin.transfer(
+                campaigns[campaignIdLocal]._contributors[i],
+                _contributionDetails[campaignIdLocal][
+                    campaigns[campaignIdLocal]._contributors[i]
+                ]
+            );
 
-            console.log("Amount returned :: %s", campaigns[campaignIdLocal]._contributions[i]);
-            console.log("Returned to address :: %s", campaigns[campaignIdLocal]._contributors[i]);
+            console.log(
+                "Amount %s returned to address %s",
+                _contributionDetails[campaignIdLocal][
+                    campaigns[campaignIdLocal]._contributors[i]
+                ],
+                campaigns[campaignIdLocal]._contributors[i]
+            );
         }
 
         console.log("Campaign id %s ended", campaignIdLocal);
-
     }
 
-    function forceEndCampaign(uint campaignIdLocal) external campaignOwner(campaignIdLocal, msg.sender) {
-
+    function forceEndCampaign(
+        uint campaignIdLocal
+    ) external campaignOwner(campaignIdLocal, msg.sender) {
         endCampaign(campaignIdLocal);
     }
 
-    function targetMet(uint campaignIdLocal) external view returns(bool){
-
-        return campaigns[campaignIdLocal]._collection >= campaigns[campaignIdLocal]._target;
+    function targetMet(uint campaignIdLocal) external view returns (bool) {
+        return
+            campaigns[campaignIdLocal]._collection >=
+            campaigns[campaignIdLocal]._target;
     }
 
-    function getContribution(uint campaignIdLocal) external view returns(uint){
-
+    function getContribution(
+        uint campaignIdLocal
+    ) external view returns (uint) {
         return campaigns[campaignIdLocal]._collection;
     }
 
-    // TODO remove method
-    // function contributeETH(uint chosenCampaign) external payable {
-
-    //     require(msg.value > 0, "Must input tokens to deposit");
-    //     require(campaigns[chosenCampaign]._ended == false, "Campaign must be active");
-
-    //     campaigns[chosenCampaign]._contributors.push(payable(msg.sender));
-    //     campaigns[chosenCampaign]._contributions.push(msg.value);
-    //     campaigns[chosenCampaign]._collection += msg.value;
-    // }
-
-    function contributeTokens(uint chosenCampaign, uint amount) external {
-
+    function 
+    Tokens(uint chosenCampaign, uint amount) external {
         require(amount > 0, "Must input tokens to deposit");
-        require(amount <= campaigns[chosenCampaign]._target, "Contribution amount is more than the target");
-        require(campaigns[chosenCampaign]._ended == false, "Campaign must be active");
-        require(campaigns[chosenCampaign]._collection < campaigns[chosenCampaign]._target, "Target reached. No more contributions are accepted.");
-        require(b4t1Coin.allowance(msg.sender, address(this)) >= amount, "Plz approve token transfer to contract");
+        require(msg.sender != address(0), "Invalid wallet address");
+
+        require(
+            campaigns[chosenCampaign]._collection <
+                campaigns[chosenCampaign]._target,
+            "Target reached. No more contributions are accepted."
+        );
+        require(
+            campaigns[chosenCampaign]._collection + amount <=
+                campaigns[chosenCampaign]._target,
+            "Target amount exceeded. Reduce amount to contribute."
+        );
+        require(
+            campaigns[chosenCampaign]._ended == false,
+            "Campaign must be active"
+        );
+
+        require(
+            b4t1Coin.allowance(msg.sender, address(this)) >= amount,
+            "Approve token transfer to contract"
+        );
+        require(gasleft() > MINIMUM_AMOUNT, "Insufficient gas balance");
 
         // Receive tokens
         b4t1Coin.transferFrom(msg.sender, address(this), amount);
 
-        // campaigns[chosenCampaign]._contributors.push(payable(msg.sender));
+        // Collect details of contributor/ contribution
         campaigns[chosenCampaign]._contributors.push(msg.sender);
-        campaigns[chosenCampaign]._contributions.push(amount);
+        _contributionDetails[chosenCampaign][msg.sender] += amount;
         campaigns[chosenCampaign]._collection += amount;
 
         // Return receipt
         b4t1Receipt.mint(msg.sender, chosenCampaign, amount, "");
     }
 
-    function claimReward(uint chosenCampaign, uint amount) external {
+    function withdrawPledge(uint chosenCampaign) external {
+        require(
+            block.timestamp < campaigns[chosenCampaign]._withdrawPledgeTime,
+            "Pledged tokens cannot be withdrawn after 2 mins"
+        );
 
-        require(amount > 0, "Not a valid amount for withdrawal");
+        b4t1Receipt.safeTransferFrom(
+            msg.sender,
+            address(this),
+            chosenCampaign,
+            _contributionDetails[chosenCampaign][msg.sender],
+            "x0"
+        );
+        b4t1Coin.transfer(
+            msg.sender,
+            _contributionDetails[chosenCampaign][msg.sender]
+        );
 
-        for (uint8 i = 0; i < campaigns[chosenCampaign]._contributors.length; i++) {
-
-            if (campaigns[chosenCampaign]._contributors[i] != msg.sender) {
-                continue;
-            }
-
-            require(amount <= campaigns[chosenCampaign]._contributions[i], "Requested amount is more than deposited amount");
-
-            // b4t1Receipt.safeTransferFrom(deployerAddress, playerAddress, 2, 1, "0x0"); // TODO 
-            // b4t1Coin.transferFrom(address(this), msg.sender, amount);
-            campaigns[chosenCampaign]._contributions[i] -= amount;
-            break;
-        }
-
+        _contributionDetails[chosenCampaign][msg.sender] = 0;
     }
 
-    function ethBalance() external view returns (uint){
+    function claimReward(uint chosenCampaign, uint amount) external {
+        require(amount > 0, "Not a valid amount for withdrawal");
+        require(msg.sender != address(0), "Invalid wallet address");
 
+        require(
+            _contributionDetails[chosenCampaign][msg.sender] <= amount,
+            "Requested amount is more than deposited amount"
+        );
+        require(gasleft() > MINIMUM_AMOUNT, "Insufficient gas balance");
+
+        b4t1Receipt.safeTransferFrom(
+            msg.sender,
+            address(this),
+            chosenCampaign,
+            amount,
+            "x0"
+        );
+        b4t1Coin.transfer(msg.sender, amount);
+
+        _contributionDetails[chosenCampaign][msg.sender] -= amount;
+    }
+
+    function ethBalance() external view returns (uint) {
         return address(this).balance;
     }
 
-    function tokenBalance() external view returns (uint){
-
+    function tokenBalance() external view returns (uint) {
         return b4t1Coin.balanceOf(address(this));
     }
 
-    function nftBalance(uint chosenCampaign) external view returns (uint){
-
+    function nftBalance(uint chosenCampaign) external view returns (uint) {
         return b4t1Receipt.balanceOf(msg.sender, chosenCampaign);
     }
 
     receive() external payable {}
 
     fallback() external payable {}
-
 }
