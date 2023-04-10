@@ -15,12 +15,12 @@ import {
   Slider,
   Typography,
 } from "@mui/material";
-import { BigNumber, Contract, providers } from "ethers";
+import { Contract, ethers, providers } from "ethers";
 import { useEffect, useRef, useState } from "react";
 import Web3Modal from "web3modal";
 
 export default function CreateCampaignView() {
-  const web3ModalRef = useRef();
+  const web3ModalRef = useRef<any>();
   useEffect(() => {
     web3ModalRef.current = new Web3Modal({
       network: "sepolia",
@@ -114,8 +114,10 @@ export default function CreateCampaignView() {
         signer
       );
       const res = await tokenContract.createCampaign(
-        BigNumber.from(fundsGoal),
-        fundName
+        ethers.utils.parseUnits(fundsGoal.toString(), "ether"),
+        fundName,
+        motivationStatement,
+        fundsTargetDays
       );
       console.log(res);
       setIsSuccess(true);

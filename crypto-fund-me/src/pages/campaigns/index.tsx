@@ -1,3 +1,9 @@
+import CampaignsController from "@/layouts/campaigns/campaigns.controller";
+
 export default function Campaigns() {
-  return <>Campaigns</>;
+  return (
+    <>
+      <CampaignsController></CampaignsController>
+    </>
+  );
 }

@@ -8,7 +8,7 @@ import Link from "next/link";
 
 export default function HomeView() {
   // Create a reference to the Web3 Modal (used for connecting to Metamask) which persists as long as the page is open
-  const web3ModalRef = useRef();
+  const web3ModalRef = useRef<any>();
 
   const [walletConnected, setWalletConnected, provider, setProvider] =
     useWalletStore((state: any) => [
@@ -103,7 +103,7 @@ export default function HomeView() {
   }, [walletConnected]);
 
   return (
-    <div>
+    <div className="p-8">
       <Head>
         <title>CryptoFundMe</title>
         <meta name="description" content="Whitelist-Dapp" />
