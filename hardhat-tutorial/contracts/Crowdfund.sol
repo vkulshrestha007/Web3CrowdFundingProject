@@ -284,6 +284,10 @@ contract Crowdfund is ERC1155Holder {
         return b4t1Receipt.balanceOf(msg.sender, chosenCampaign);
     }
 
+    function getAllCampaigns() public view returns (Campaign[] memory) {
+        return campaigns;
+    }
+
     receive() external payable {}
 
     fallback() external payable {}
