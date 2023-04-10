@@ -1,9 +1,9 @@
-import NavbarLayout from "./navbar.layout";
+import NavbarView from "./navbar.view";
 
 export default function NavbarController() {
   return (
     <>
-      <NavbarLayout></NavbarLayout>
+      <NavbarView></NavbarView>
     </>
   );
 }

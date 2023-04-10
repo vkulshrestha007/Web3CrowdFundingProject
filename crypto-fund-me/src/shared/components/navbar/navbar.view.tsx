@@ -19,7 +19,7 @@ const pages = ["Campaigns", "Create"];
 // const settings = ["Profile", "Account", "Dashboard", "Logout"];
 const settings: string[] = [];
 
-function NavbarLayout() {
+function NavbarView() {
   const [walletConnected, setWalletConnected] = useWalletStore((state: any) => [
     state.walletConnected,
     state.setWalletConnected,
@@ -186,4 +186,4 @@ function NavbarLayout() {
     </AppBar>
   );
 }
-export default NavbarLayout;
+export default NavbarView;

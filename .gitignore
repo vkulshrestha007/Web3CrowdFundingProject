@@ -34,3 +34,5 @@
 # typescript
 /crypto-fund-me/*.tsbuildinfo
 /crypto-fund-me/next-env.d.ts
+
+/hardhat-tutorial/.deps
