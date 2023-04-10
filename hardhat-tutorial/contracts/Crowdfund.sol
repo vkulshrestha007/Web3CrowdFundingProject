@@ -174,8 +174,7 @@ contract Crowdfund is ERC1155Holder {
         return campaigns[campaignIdLocal]._collection;
     }
 
-    function 
-    Tokens(uint chosenCampaign, uint amount) external {
+    function contributeTokens(uint chosenCampaign, uint amount) external {
         require(amount > 0, "Must input tokens to deposit");
         require(msg.sender != address(0), "Invalid wallet address");
 
@@ -188,6 +187,10 @@ contract Crowdfund is ERC1155Holder {
             campaigns[chosenCampaign]._collection + amount <=
                 campaigns[chosenCampaign]._target,
             "Target amount exceeded. Reduce amount to contribute."
+        );
+        require(
+            block.timestamp < campaigns[chosenCampaign]._presaleEndTime,
+            "Contributions allowed only before deadline"
         );
         require(
             campaigns[chosenCampaign]._ended == false,
@@ -231,15 +234,20 @@ contract Crowdfund is ERC1155Holder {
         );
 
         _contributionDetails[chosenCampaign][msg.sender] = 0;
+        campaigns[chosenCampaign]._collection -= _contributionDetails[
+            chosenCampaign
+        ][msg.sender];
     }
 
     function claimReward(uint chosenCampaign, uint amount) external {
         require(amount > 0, "Not a valid amount for withdrawal");
         require(msg.sender != address(0), "Invalid wallet address");
 
+        // todo remove comment
+        // require(block.timestamp > campaigns[chosenCampaign]._presaleEndTime, "Reward can be claimed after campaign has completed");
         require(
-            _contributionDetails[chosenCampaign][msg.sender] <= amount,
-            "Requested amount is more than deposited amount"
+            _contributionDetails[chosenCampaign][msg.sender] >= amount,
+            "Amount claimed is more than amount deposited"
         );
         require(gasleft() > MINIMUM_AMOUNT, "Insufficient gas balance");
 
