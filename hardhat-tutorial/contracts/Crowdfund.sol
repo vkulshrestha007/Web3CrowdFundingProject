@@ -243,8 +243,7 @@ contract Crowdfund is ERC1155Holder {
         require(amount > 0, "Not a valid amount for withdrawal");
         require(msg.sender != address(0), "Invalid wallet address");
 
-        // todo remove comment
-        // require(block.timestamp > campaigns[chosenCampaign]._presaleEndTime, "Reward can be claimed after campaign has completed");
+        require(block.timestamp > campaigns[chosenCampaign]._presaleEndTime, "Reward can be claimed after campaign has completed");
         require(
             _contributionDetails[chosenCampaign][msg.sender] >= amount,
             "Amount claimed is more than amount deposited"
