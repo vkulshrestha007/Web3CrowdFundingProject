@@ -2,7 +2,6 @@ import {
   CROWDFUND_CONTRACT_ABI,
   CROWDFUND_CONTRACT_ADDRESS,
 } from "@/constants/constants";
-import { PhotoCamera } from "@mui/icons-material";
 import {
   Alert,
   Box,
@@ -119,7 +118,8 @@ export default function CreateCampaignView() {
           signer
         );
         const endTime = new Date();
-        endTime.setDate(endTime.getDate() + fundsTargetDays);
+        // endTime.setDate(endTime.getDate() + fundsTargetDays);
+        endTime.setMinutes(endTime.getMinutes() + fundsTargetDays);
         const imageRes = await uploadImage(imageBase64);
         const res = await tokenContract.createCampaign(
           ethers.utils.parseUnits(fundsGoal.toString(), "ether"),
@@ -245,13 +245,11 @@ export default function CreateCampaignView() {
             component="label"
           >
             <input
-              hidden
               accept="image/*"
               type="file"
               onChange={updateImageFile}
+              required
             />
-            Upload&nbsp;
-            <PhotoCamera />
           </IconButton>
         </FormControl>
         <FormControl fullWidth sx={{ m: 1 }}>

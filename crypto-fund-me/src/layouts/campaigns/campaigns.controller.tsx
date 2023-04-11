@@ -15,7 +15,7 @@ export default function CampaignsController() {
       providerOptions: {},
       disableInjectedProvider: false,
     });
-    if (allCampaigns.length === 0) fetchAllCampaigns();
+    if (!campaignCalled) fetchAllCampaigns();
   });
   /**
    * Returns a Provider or Signer object representing the Ethereum RPC with or without the
@@ -46,9 +46,11 @@ export default function CampaignsController() {
   };
 
   const [allCampaigns, setAllCampaigns] = useState([]);
+  const [campaignCalled, setCampaignCalled] = useState(false);
 
   async function fetchAllCampaigns() {
     try {
+      setCampaignCalled(true);
       const provider = await getProviderOrSigner();
       const tokenContract = new Contract(
         CROWDFUND_CONTRACT_ADDRESS,

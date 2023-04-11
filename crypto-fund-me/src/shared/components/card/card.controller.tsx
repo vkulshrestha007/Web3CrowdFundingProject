@@ -7,6 +7,7 @@ export default function CardController(props: any) {
         card={props.card}
         contribute={props.contribute}
         claimRewards={props.claimRewards}
+        endCampaign={props.endCampaign}
         index={props.index}
       ></CardView>
     </>

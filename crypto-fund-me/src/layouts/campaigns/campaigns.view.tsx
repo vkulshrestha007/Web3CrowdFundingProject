@@ -72,6 +72,7 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
   const [snackbarSeverity, setSnackbarSeverity] = useState(
     "error" as AlertColor
   );
+  const [rewardsPending, setRewardsPending] = useState("");
 
   const setUtilityLoading = useUtilityStore((state: any) => state.setLoading);
   const timerVal = 10000;
@@ -84,12 +85,22 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
     const showClaim =
       progress === 100 &&
       parseInt(campaign._presaleEndTime._hex) <= currentEpoc;
+    const showEndCampaign =
+      !showClaim && parseInt(campaign._presaleEndTime._hex) <= currentEpoc;
+    const expiryDate = new Date(
+      parseInt(campaign._presaleEndTime._hex)
+    ).toLocaleString();
     return {
       image: campaign._imagePath || "./crowdfunding.svg",
       name: campaign._name,
       statement: campaign._motivationStatement,
+      ended: campaign._ended,
+      target,
+      collection,
       progress,
+      expiryDate,
       showClaim,
+      showEndCampaign,
     };
   }
 
@@ -175,9 +186,29 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
     setOpen(true);
   }
 
-  function openClaimRewards(index: number) {
+  async function openClaimRewards(index: number) {
     setSelectedIndex(index);
-    setClaimRewardOpen(true);
+    try {
+      setUtilityLoading(true);
+      const signer = (await getProviderOrSigner(true)) as any;
+      const tokenContract = new Contract(
+        CROWDFUND_CONTRACT_ADDRESS,
+        CROWDFUND_CONTRACT_ABI,
+        signer
+      );
+      const address = await signer?.getAddress();
+      const res = await tokenContract._contributionDetails(
+        parseInt(campaigns[index]._id._hex),
+        address
+      );
+      setRewardsPending(ethers.utils.formatEther(res));
+      setUtilityLoading(false);
+      setClaimRewardOpen(true);
+    } catch (err) {
+      console.log(err);
+      setUtilityLoading(false);
+      openSnackbar("Something went wrong. Please try again later", "error");
+    }
   }
 
   function handleClaimRewardsClose() {
@@ -193,6 +224,29 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
 
   function handleSnackbarClose() {
     setSnackbarOpen(false);
+  }
+
+  async function endCampaign() {
+    try {
+      setUtilityLoading(true);
+      const signer = await getProviderOrSigner(true);
+      const tokenContract = new Contract(
+        CROWDFUND_CONTRACT_ADDRESS,
+        CROWDFUND_CONTRACT_ABI,
+        signer
+      );
+      const res = await tokenContract.checkCampaign(
+        parseInt(campaigns[selectedIndex]._id._hex)
+      );
+      const tx = await res.wait();
+      console.log(tx);
+      setUtilityLoading(false);
+      openSnackbar("Campaign ended successfully", "success");
+    } catch (err) {
+      console.log(err);
+      setUtilityLoading(false);
+      openSnackbar("Something went wrong. Please try again later", "error");
+    }
   }
 
   async function claimRewards() {
@@ -228,6 +282,9 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
       );
       console.log(res);
       setUtilityLoading(false);
+      setRewardsPending("");
+      setWithdrawAmount("");
+      setClaimRewardOpen(false);
       openSnackbar("Rewards claimed successfully", "success");
     } catch (err) {
       console.log(err);
@@ -259,13 +316,14 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
           {snackbarMessage}
         </Alert>
       </Snackbar>
-      <div className="flex flex-wrap p-10 justify-between">
+      <div className="flex flex-wrap p-10 justify-start">
         {campaigns.map((campaign: any, index) => (
           <div className="m-4" key={index}>
             <CardController
               card={getCardData(campaign)}
               contribute={contribute}
               claimRewards={openClaimRewards}
+              endCampaign={endCampaign}
               index={index}
             ></CardController>
           </div>
@@ -317,14 +375,11 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
           <DialogContentText className="font-semibold mb-4">
             {campaigns[selectedIndex]?._motivationStatement}
           </DialogContentText>
-          <DialogContentText>
-            Enter the tokens to be withdrawn
-          </DialogContentText>
           <TextField
             autoFocus
             margin="dense"
-            id="funds-contribution"
-            label="Funds Contribution"
+            id="funds-withdraw"
+            label="Funds to be withdrawn"
             type="number"
             fullWidth
             variant="standard"
@@ -332,6 +387,9 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
             onChange={updateWithdrawAmount}
             inputProps={{ min: 0 }}
           />
+          <DialogContentText>
+            Claims Pending:{" " + rewardsPending}
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={claimRewards}>Withdraw</Button>
