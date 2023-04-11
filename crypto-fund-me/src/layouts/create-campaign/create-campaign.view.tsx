@@ -2,7 +2,6 @@ import {
   CROWDFUND_CONTRACT_ABI,
   CROWDFUND_CONTRACT_ADDRESS,
 } from "@/constants/constants";
-import useWalletStore from "@/stores/wallet.store";
 import { PhotoCamera } from "@mui/icons-material";
 import {
   Alert,
@@ -18,6 +17,7 @@ import {
 import { Contract, ethers, providers } from "ethers";
 import { useEffect, useRef, useState } from "react";
 import Web3Modal from "web3modal";
+import Moralis from "moralis";
 
 export default function CreateCampaignView() {
   const web3ModalRef = useRef<any>();
@@ -73,9 +73,10 @@ export default function CreateCampaignView() {
   const [motivationStatement, setMotivationStatement] = useState("");
   const [fundsGoal, setFundsGoal] = useState(0);
   const [fundsTargetDays, setFundsTargetDays] = useState(30);
-  const provider = useWalletStore((state: any) => state.provider);
+  const [imageFile, setImageFile] = useState(null as any);
   const [isError, setIsError] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [libraryInit, setLibraryInit] = useState(null as any);
   function resetErrorSuccess() {
     setIsError(false);
     setIsSuccess(false);
@@ -86,6 +87,10 @@ export default function CreateCampaignView() {
   }
   function updateFundsGoal(event: any) {
     resetErrorSuccess();
+    if (event.target.value < 0) {
+      setFundsGoal(0);
+      return;
+    }
     setFundsGoal(event.target.value);
   }
   function updateMotivationStatement(event: any) {
@@ -96,35 +101,75 @@ export default function CreateCampaignView() {
     resetErrorSuccess();
     setFundsTargetDays(event.target.value);
   }
+  function updateImageFile(event: any) {
+    resetErrorSuccess();
+    setImageFile(event.target.files[0]);
+  }
 
   async function handleSubmit(e: any) {
     // Prevent the browser from reloading the page
     e.preventDefault();
-    const body = {
-      fundName,
-      motivationStatement,
-      fundsGoal,
-      fundsTargetDays,
-    };
+    console.log(imageFile);
     try {
-      const signer = await getProviderOrSigner(true);
-      const tokenContract = new Contract(
-        CROWDFUND_CONTRACT_ADDRESS,
-        CROWDFUND_CONTRACT_ABI,
-        signer
-      );
-      const res = await tokenContract.createCampaign(
-        ethers.utils.parseUnits(fundsGoal.toString(), "ether"),
-        fundName,
-        motivationStatement,
-        fundsTargetDays
-      );
-      console.log(res);
-      setIsSuccess(true);
+      getBase64(imageFile, async (imageBase64: string) => {
+        const signer = await getProviderOrSigner(true);
+        const tokenContract = new Contract(
+          CROWDFUND_CONTRACT_ADDRESS,
+          CROWDFUND_CONTRACT_ABI,
+          signer
+        );
+        const endTime = new Date();
+        endTime.setDate(endTime.getDate() + fundsTargetDays);
+        const imageRes = await uploadImage(imageBase64);
+        const res = await tokenContract.createCampaign(
+          ethers.utils.parseUnits(fundsGoal.toString(), "ether"),
+          fundName,
+          motivationStatement,
+          imageRes,
+          endTime.getTime()
+        );
+        console.log(res);
+        setIsSuccess(true);
+      });
     } catch (err) {
       console.log(err);
       setIsError(true);
     }
+  }
+
+  function getBase64(file: any, cb: Function) {
+    let reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = function () {
+      cb(reader.result);
+    };
+    reader.onerror = function (error) {
+      console.log("Error: ", error);
+    };
+  }
+
+  async function uploadImage(imageBase64: string) {
+    if (libraryInit === null) {
+      setLibraryInit(
+        await Moralis.start({
+          apiKey: process.env.MORALIS_KEY,
+          // ...and any other configuration
+        })
+      );
+    }
+
+    const abi = [
+      {
+        path: imageFile.name,
+        content: imageBase64,
+      },
+    ];
+
+    const response = await Moralis.EvmApi.ipfs.uploadFolder({ abi });
+
+    console.log(response.toJSON());
+    const res: any = response.toJSON();
+    return res[0].path;
   }
 
   function valuetext(value: number) {
@@ -172,6 +217,7 @@ export default function CreateCampaignView() {
             id="funds-goal"
             label="Funds Goal"
             type="number"
+            value={fundsGoal}
             required
             onChange={updateFundsGoal}
           />
@@ -198,7 +244,12 @@ export default function CreateCampaignView() {
             aria-label="upload picture"
             component="label"
           >
-            <input hidden accept="image/*" type="file" />
+            <input
+              hidden
+              accept="image/*"
+              type="file"
+              onChange={updateImageFile}
+            />
             Upload&nbsp;
             <PhotoCamera />
           </IconButton>

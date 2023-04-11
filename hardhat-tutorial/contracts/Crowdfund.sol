@@ -6,17 +6,17 @@ import "./Batch4Team1Coin.sol";
 import "./Batch4Team1Receipt.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
-/// @title A crowdfunding contract
-/// @author Deep Kulshreshtha
-/// @notice Developed as part of web3 training. Batch 4 Team 1
-/// @notice You can use this contract for basic simulation
-/// @dev All function calls are currently implemented without side effects
-/// @custom:experimental This is an experimental contract.
+// @title A crowdfunding contract
+// @author Deep Kulshreshtha
+// @notice Developed as part of web3 training. Batch 4 Team 1
+// @notice You can use this contract for basic simulation
+// @dev All function calls are currently implemented without side effects
+// @custom:experimental This is an experimental contract.
 contract Crowdfund is ERC1155Holder {
     Batch4Team1Coin b4t1Coin;
     Batch4Team1Receipt b4t1Receipt;
 
-    /// @notice Minimum amount of ETH required to allow the contract to function.
+    // @notice Minimum amount of ETH required to allow the contract to function.
     uint constant MINIMUM_AMOUNT = 10_000;
 
     uint campaignId = 0;
@@ -35,9 +35,9 @@ contract Crowdfund is ERC1155Holder {
         address[] _contributors;
     }
 
-    /// @notice Nested mapping to maintain all contributions to the campaigns.
-    /// @dev Campaign index mapped to the list of contributor's addresses.
-    /// @dev Each contributor address mapped to the contribution
+    // @notice Nested mapping to maintain all contributions to the campaigns.
+    // @dev Campaign index mapped to the list of contributor's addresses.
+    // @dev Each contributor address mapped to the contribution
     mapping(uint => mapping(address => uint)) public _contributionDetails;
 
     Campaign[] public campaigns;
@@ -47,7 +47,7 @@ contract Crowdfund is ERC1155Holder {
         b4t1Receipt = Batch4Team1Receipt(b4t1ReceiptAddress);
     }
 
-    /// @notice Modifier to limit functionalities for the campaign owner
+    // @notice Modifier to limit functionalities for the campaign owner
     modifier campaignOwner(uint campaignIdLocal, address sender) {
         require(
             campaigns[campaignIdLocal]._projectOwner == sender,
@@ -57,13 +57,13 @@ contract Crowdfund is ERC1155Holder {
         _;
     }
 
-    /// @notice Create the crowdfund campaign based on the inputs
-    /// @param target The number of ERC20 tokens to reach for the crowdfund
-    /// @param name Name of the campaign
-    /// @param motivationStatement Statement for the campaign
-    /// @param imagePath IPFS path of the campaign's image
-    /// @param endTime The epoch when this campaign contribution is planned to be ended
-    /// @return projectId as the Id of the newly created campaign
+    // @notice Create the crowdfund campaign based on the inputs
+    // @param target The number of ERC20 tokens to reach for the crowdfund
+    // @param name Name of the campaign
+    // @param motivationStatement Statement for the campaign
+    // @param imagePath IPFS path of the campaign's image
+    // @param endTime The epoch when this campaign contribution is planned to be ended
+    // @return projectId as the Id of the newly created campaign
     function createCampaign(
         uint target,
         string memory name,
@@ -87,11 +87,11 @@ contract Crowdfund is ERC1155Holder {
         return campaignId - 1;
     }
 
-    /// @notice Get the current status of the campaign
-    /// @dev Depends on whether the campaign collection goal has been met.
-    /// @dev And whether collection timeline has ended
-    /// @param campaignId The index of the campaign. Returned by createCampaign method
-    /// @return status of the campaign as active/ inactive
+    // @notice Get the current status of the campaign
+    // @dev Depends on whether the campaign collection goal has been met.
+    // @dev And whether collection timeline has ended
+    // @param campaignId The index of the campaign. Returned by createCampaign method
+    // @return status of the campaign as active/ inactive
     function checkCampaign(
         uint campaignIdLocal
     ) external returns (string memory) {
@@ -112,11 +112,11 @@ contract Crowdfund is ERC1155Holder {
         return "active";
     }
 
-    /// @notice End the campaign. And return the contributions back.
-    /// @notice This would be done when the campaign is unsuccessful
-    /// @dev Since campaign was unsuccessful, we do not get the Receipts ( ERC1155 ) back.
-    /// @dev It would add not value, and would just cost extra gas fee.
-    /// @param campaignId The index of the campaign. Returned by createCampaign method
+    // @notice End the campaign. And return the contributions back.
+    // @notice This would be done when the campaign is unsuccessful
+    // @dev Since campaign was unsuccessful, we do not get the Receipts ( ERC1155 ) back.
+    // @dev It would add not value, and would just cost extra gas fee.
+    // @param campaignId The index of the campaign. Returned by createCampaign method
     function endCampaign(uint campaignIdLocal) internal {
         require(gasleft() > MINIMUM_AMOUNT, "Insufficient gas balance");
         require(
@@ -168,10 +168,10 @@ contract Crowdfund is ERC1155Holder {
         return campaigns[campaignIdLocal]._collection;
     }
 
-    /// @notice Method to contribute to a campaign
-    /// @dev Upon contribution, a receipt ( ERC1155 ) are issued back to the contributor
-    /// @param campaignId The index of the campaign. Returned by createCampaign method
-    /// @param amount of tokens the contributor invests in the campaign
+    // @notice Method to contribute to a campaign
+    // @dev Upon contribution, a receipt ( ERC1155 ) are issued back to the contributor
+    // @param campaignId The index of the campaign. Returned by createCampaign method
+    // @param amount of tokens the contributor invests in the campaign
     function contributeTokens(uint chosenCampaign, uint amount) external {
         require(amount > 0, "Must input tokens to deposit");
         require(msg.sender != address(0), "Invalid wallet address");
@@ -213,10 +213,10 @@ contract Crowdfund is ERC1155Holder {
         b4t1Receipt.mint(msg.sender, chosenCampaign, amount, "");
     }
 
-    /// @notice User decides to withdraw the contribution
-    /// @dev User needs to return the receipt.
-    /// @dev To do so, user needs to approve the ERC1155 transfer by this contract before this method is called.
-    /// @param campaignId The index of the campaign. Returned by createCampaign method
+    // @notice User decides to withdraw the contribution
+    // @dev User needs to return the receipt.
+    // @dev To do so, user needs to approve the ERC1155 transfer by this contract before this method is called.
+    // @param campaignId The index of the campaign. Returned by createCampaign method
     function withdrawPledge(uint chosenCampaign) external {
         require(
             block.timestamp < campaigns[chosenCampaign]._withdrawPledgeTime,
@@ -241,11 +241,11 @@ contract Crowdfund is ERC1155Holder {
         ][msg.sender];
     }
 
-    /// @notice User claims reward of his contribution
-    /// @dev Campaign is complete. No need to take back the receipt.
-    /// @dev It would add not value, and would just cost extra gas fee.
-    /// @param campaignId The index of the campaign. Returned by createCampaign method
-    /// @param amount from his contribution that the user wants to claim back. Use can claim partial rewards
+    // @notice User claims reward of his contribution
+    // @dev Campaign is complete. No need to take back the receipt.
+    // @dev It would add not value, and would just cost extra gas fee.
+    // @param campaignId The index of the campaign. Returned by createCampaign method
+    // @param amount from his contribution that the user wants to claim back. Use can claim partial rewards
     function claimReward(uint chosenCampaign, uint amount) external {
         require(amount > 0, "Not a valid amount for withdrawal");
         require(msg.sender != address(0), "Invalid wallet address");

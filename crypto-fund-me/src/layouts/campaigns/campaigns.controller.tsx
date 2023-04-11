@@ -1,4 +1,4 @@
-import { Contract, providers } from "ethers";
+import { Contract, ethers, providers } from "ethers";
 import CampaignsView from "./campaigns.view";
 import Web3Modal from "web3modal";
 import { useEffect, useRef, useState } from "react";
@@ -56,11 +56,7 @@ export default function CampaignsController() {
         provider
       );
       const res = await tokenContract.getAllCampaigns();
-      // let temp = [];
-
-      // for (let i = 0; i < 10; i++) {
-      //   temp.push(res[0]);
-      // }
+      console.log(res);
       setAllCampaigns(res);
     } catch (err) {
       console.error(err);

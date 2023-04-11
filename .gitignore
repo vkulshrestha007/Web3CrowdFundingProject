@@ -19,6 +19,9 @@
 /crypto-fund-me/.DS_Store
 /crypto-fund-me/*.pem
 
+#env
+/crypto-fund-me/env.ts
+
 # debug
 /crypto-fund-me/npm-debug.log*
 /crypto-fund-me/yarn-debug.log*

@@ -43,7 +43,7 @@ export default function CardView(props: any) {
         <Button size="small" onClick={() => props?.contribute(props?.index)}>
           Contribute
         </Button>
-        {props.card.progress === 100 && (
+        {props.card.showClaim && (
           <Button
             size="small"
             onClick={() => props?.claimRewards(props?.index)}

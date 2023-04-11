@@ -1,17 +1,28 @@
+import {
+  BATCH_4_TEAM_1_COIN_ABI,
+  BATCH_4_TEAM_1_COIN_ADDRESS,
+  BATCH_4_TEAM_1_RECEIPT_ABI,
+  BATCH_4_TEAM_1_RECEIPT_ADDRESS,
+  CROWDFUND_CONTRACT_ABI,
+  CROWDFUND_CONTRACT_ADDRESS,
+} from "@/constants/constants";
 import CardController from "@/shared/components/card/card.controller";
 import { TimerController } from "@/shared/components/timer/timer.controller";
+import useUtilityStore from "@/stores/utility.store";
 import {
+  Alert,
+  AlertColor,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Snackbar,
   TextField,
 } from "@mui/material";
-import { ethers, providers } from "ethers";
+import { Contract, ethers, providers } from "ethers";
 import { useEffect, useRef, useState } from "react";
-import { setInterval, clearInterval } from "timers";
 import Web3Modal from "web3modal";
 
 export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
@@ -53,52 +64,208 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [contributionBuffer, setContributionBuffer] = useState(false);
+  const [contributionAmount, setContributionAmount] = useState("" as any);
+  const [claimRewardOpen, setClaimRewardOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("" as any);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState(
+    "error" as AlertColor
+  );
+
+  const setUtilityLoading = useUtilityStore((state: any) => state.setLoading);
+  const timerVal = 10000;
   function getCardData(campaign: any) {
     const target = Number(ethers.utils.formatEther(campaign._target));
     const collection = Number(ethers.utils.formatEther(campaign._collection));
+    const progress =
+      collection === 0 ? 0 : Math.floor((collection / target) * 100);
+    const currentEpoc = new Date().getTime();
+    const showClaim =
+      progress === 100 &&
+      parseInt(campaign._presaleEndTime._hex) <= currentEpoc;
     return {
-      image: campaign._img || "./crowdfunding.svg",
+      image: campaign._imagePath || "./crowdfunding.svg",
       name: campaign._name,
       statement: campaign._motivationStatement,
-      progress: collection === 0 ? 0 : Math.floor((target / collection) * 100),
+      progress,
+      showClaim,
     };
   }
 
   function handleClose() {
+    setContributionAmount("");
     setOpen(false);
   }
-  const [intervalId, setIntervalId] = useState(null as any);
-  function handleContribute() {
-    setContributionBuffer(true);
-    setIntervalId(
-      setInterval(() => {
-        setContributionBuffer(false);
-        clearInterval(intervalId);
-        initiateContribution();
-      }, 60000)
-    );
-  }
   function handleCancelContribution() {
-    clearInterval(intervalId);
+    setContributionAmount("");
     setContributionBuffer(false);
   }
-  function initiateContribution() {}
+
+  function updateContributionAmount(event: any) {
+    if (event.target.value < 0) {
+      setContributionAmount("");
+      return;
+    }
+    setContributionAmount(event.target.value);
+  }
+
+  function handleContributionTimer() {
+    if (contributionAmount === "") {
+      openSnackbar("Enter some amount to contribute", "warning");
+      return;
+    }
+    setContributionBuffer(true);
+  }
+
+  async function initiateContribution() {
+    // b4t1Coin address.approve(Crowdfund contract address, amount);
+    // crowdFundContract.approve(amount to contribute)
+    if (!contributionBuffer) {
+      return;
+    }
+    setContributionBuffer(false);
+
+    try {
+      setUtilityLoading(true);
+      const signer = await getProviderOrSigner(true);
+      const batch4Coin = new Contract(
+        BATCH_4_TEAM_1_COIN_ADDRESS,
+        BATCH_4_TEAM_1_COIN_ABI,
+        signer
+      );
+      console.log(
+        ethers.utils.parseUnits(contributionAmount.toString(), "ether")
+      );
+      const tx = await batch4Coin.approve(
+        CROWDFUND_CONTRACT_ADDRESS,
+        ethers.utils.parseUnits(contributionAmount.toString(), "ether")
+      );
+      const txResult = await tx.wait();
+      if (txResult.status !== 1) {
+        openSnackbar("Approval failed");
+      }
+
+      const tokenContract = new Contract(
+        CROWDFUND_CONTRACT_ADDRESS,
+        CROWDFUND_CONTRACT_ABI,
+        signer
+      );
+
+      console.log(
+        ethers.utils.parseUnits(contributionAmount.toString(), "ether")
+      );
+      const res = await tokenContract.contributeTokens(
+        parseInt(campaigns[selectedIndex]._id._hex),
+        ethers.utils.parseUnits(contributionAmount.toString(), "ether")
+      );
+      console.log(res);
+      setUtilityLoading(false);
+      openSnackbar("Contribution Successful", "success");
+    } catch (err) {
+      console.log(err);
+      setUtilityLoading(false);
+      openSnackbar("Something went wrong. Please try again later", "error");
+    }
+    setOpen(false);
+  }
+
   function contribute(index: number) {
     setSelectedIndex(index);
     setOpen(true);
   }
-  function claimRewards(index: number) {
+
+  function openClaimRewards(index: number) {
     setSelectedIndex(index);
+    setClaimRewardOpen(true);
   }
+
+  function handleClaimRewardsClose() {
+    setWithdrawAmount("");
+    setClaimRewardOpen(false);
+  }
+
+  function openSnackbar(message: string, severity = "error") {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity as AlertColor);
+    setSnackbarOpen(true);
+  }
+
+  function handleSnackbarClose() {
+    setSnackbarOpen(false);
+  }
+
+  async function claimRewards() {
+    if (withdrawAmount === "") {
+      openSnackbar("Enter some amount to withdraw", "warning");
+    }
+    try {
+      setUtilityLoading(true);
+      const signer = await getProviderOrSigner(true);
+      const batch4Receipt = new Contract(
+        BATCH_4_TEAM_1_RECEIPT_ADDRESS,
+        BATCH_4_TEAM_1_RECEIPT_ABI,
+        signer
+      );
+      const tx = await batch4Receipt.setApprovalForAll(
+        CROWDFUND_CONTRACT_ADDRESS,
+        true
+      );
+
+      const txResult = await tx.wait();
+      if (txResult.status !== 1) {
+        openSnackbar("Approval failed");
+      }
+
+      const tokenContract = new Contract(
+        CROWDFUND_CONTRACT_ADDRESS,
+        CROWDFUND_CONTRACT_ABI,
+        signer
+      );
+      const res = await tokenContract.claimReward(
+        parseInt(campaigns[selectedIndex]._id._hex),
+        ethers.utils.parseUnits(withdrawAmount.toString(), "ether")
+      );
+      console.log(res);
+      setUtilityLoading(false);
+      openSnackbar("Rewards claimed successfully", "success");
+    } catch (err) {
+      console.log(err);
+      setUtilityLoading(false);
+      openSnackbar("Something went wrong. Please try again later", "error");
+    }
+  }
+
+  function updateWithdrawAmount(event: any) {
+    if (event.target.value < 0) {
+      setWithdrawAmount("");
+      return;
+    }
+    setWithdrawAmount(event.target.value);
+  }
+
   return (
     <>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbarSeverity}
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
       <div className="flex flex-wrap p-10 justify-between">
         {campaigns.map((campaign: any, index) => (
-          <div className="m-4">
+          <div className="m-4" key={index}>
             <CardController
               card={getCardData(campaign)}
               contribute={contribute}
-              claimRewards={claimRewards}
+              claimRewards={openClaimRewards}
               index={index}
             ></CardController>
           </div>
@@ -121,20 +288,54 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
             type="number"
             fullWidth
             variant="standard"
+            value={contributionAmount}
+            onChange={updateContributionAmount}
+            inputProps={{ min: 0 }}
           />
         </DialogContent>
         <DialogActions>
           {contributionBuffer ? (
             <Button onClick={handleCancelContribution}>
               Click here to cancel your contribution within{" "}
-              <TimerController timerVal={60}></TimerController> seconds
+              <TimerController
+                timerVal={timerVal / 1000}
+                callback={initiateContribution}
+              ></TimerController>{" "}
+              seconds
             </Button>
           ) : (
             <>
-              <Button onClick={handleContribute}>Contribute</Button>
+              <Button onClick={handleContributionTimer}>Contribute</Button>
               <Button onClick={handleClose}>Cancel</Button>
             </>
           )}
+        </DialogActions>
+      </Dialog>
+      <Dialog open={claimRewardOpen} onClose={handleClaimRewardsClose}>
+        <DialogTitle>{campaigns[selectedIndex]?._name}</DialogTitle>
+        <DialogContent>
+          <DialogContentText className="font-semibold mb-4">
+            {campaigns[selectedIndex]?._motivationStatement}
+          </DialogContentText>
+          <DialogContentText>
+            Enter the tokens to be withdrawn
+          </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="funds-contribution"
+            label="Funds Contribution"
+            type="number"
+            fullWidth
+            variant="standard"
+            value={withdrawAmount}
+            onChange={updateWithdrawAmount}
+            inputProps={{ min: 0 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={claimRewards}>Withdraw</Button>
+          <Button onClick={handleClaimRewardsClose}>Cancel</Button>
         </DialogActions>
       </Dialog>
     </>
