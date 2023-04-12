@@ -90,6 +90,9 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
     const expiryDate = new Date(
       parseInt(campaign._presaleEndTime._hex)
     ).toLocaleString();
+    const showContribute =
+      new Date(parseInt(campaign._presaleEndTime._hex)).getTime() >
+      new Date().getTime();
     return {
       image: campaign._imagePath || "./crowdfunding.svg",
       name: campaign._name,
@@ -101,7 +104,25 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
       expiryDate,
       showClaim,
       showEndCampaign,
+      showContribute,
+      id: parseInt(campaign._id._hex),
     };
+  }
+
+  async function fetchReward(campaign: any) {
+    const signer = (await getProviderOrSigner(true)) as any;
+    const tokenContract = new Contract(
+      CROWDFUND_CONTRACT_ADDRESS,
+      CROWDFUND_CONTRACT_ABI,
+      signer
+    );
+    const address = await signer?.getAddress();
+    const res = await tokenContract._contributionDetails(
+      parseInt(campaign._id._hex),
+      address
+    );
+    const reward = ethers.utils.formatEther(res);
+    return reward;
   }
 
   function handleClose() {
@@ -190,18 +211,8 @@ export default function CampaignsView({ campaigns }: { campaigns: any[] }) {
     setSelectedIndex(index);
     try {
       setUtilityLoading(true);
-      const signer = (await getProviderOrSigner(true)) as any;
-      const tokenContract = new Contract(
-        CROWDFUND_CONTRACT_ADDRESS,
-        CROWDFUND_CONTRACT_ABI,
-        signer
-      );
-      const address = await signer?.getAddress();
-      const res = await tokenContract._contributionDetails(
-        parseInt(campaigns[index]._id._hex),
-        address
-      );
-      setRewardsPending(ethers.utils.formatEther(res));
+      const res = await fetchReward(campaigns[index]);
+      setRewardsPending(res);
       setUtilityLoading(false);
       setClaimRewardOpen(true);
     } catch (err) {

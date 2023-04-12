@@ -63,12 +63,14 @@ export default function CardView(props: any) {
       ) : (
         <>
           <CardActions>
-            <Button
-              size="small"
-              onClick={() => props?.contribute(props?.index)}
-            >
-              Contribute
-            </Button>
+            {props.card.showContribute && (
+              <Button
+                size="small"
+                onClick={() => props?.contribute(props?.index)}
+              >
+                Contribute
+              </Button>
+            )}
             {props.card.showClaim && (
               <Button
                 size="small"
